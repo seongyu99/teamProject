@@ -1,7 +1,5 @@
-import keras
 import numpy as np, cv2, os
 import tensorflow as tf
-from tensorflow.keras import layers
 import pathlib
 
 train_dir = pathlib.Path("faces/train")
@@ -30,58 +28,36 @@ test_ds = tf.keras.utils.image_dataset_from_directory(
   image_size=(img_height, img_width),
   batch_size=batch_size)
 
-#예측을 위한 이미지 리사이징 (매우 중요)
-image1 = cv2.imread("lfw/Aaron_Eckhart/Aaron_Eckhart_0001.jpg", cv2.IMREAD_COLOR)
-image1 = cv2.resize(image1, (img_height, img_width))
-image_array1 = tf.keras.preprocessing.image.img_to_array(image1)
-image_array1 = tf.expand_dims(image_array1, 0)
-
 class_names = train_ds.class_names
 file_paths = train_ds.file_paths
 
-num_classes = 4
-backbone = tf.keras.applications.VGG16(include_top=False, input_shape=(img_height,img_width,3))
-model = keras.Sequential()
-backbone.trainable = False
-model.add(backbone)
-model.add(layers.Conv2D(32, 3, activation='relu'))
-model.add(layers.MaxPooling2D())
-model.add(layers.Flatten())
-model.add(layers.Dense(128, activation='relu'))
-model.add(layers.Dense(num_classes))
+num_classes = 3
 
-# model = tf.keras.Sequential([
-#   tf.keras.layers.experimental.preprocessing.Rescaling(1./255),
-#   tf.keras.layers.Conv2D(32, 3, activation='relu'),
-#   tf.keras.layers.MaxPooling2D(),
-#   tf.keras.layers.Conv2D(32, 3, activation='relu'),
-#   tf.keras.layers.MaxPooling2D(),
-#   tf.keras.layers.Conv2D(32, 3, activation='relu'),
-#   tf.keras.layers.MaxPooling2D(),
-#   tf.keras.layers.Flatten(),
-#   tf.keras.layers.Dense(128, activation='relu'),
-#   tf.keras.layers.Dense(num_classes)
-# ])
-model.compile(
+model = tf.keras.Sequential([  # 학습모델 생성및 레이어 추가
+  tf.keras.layers.experimental.preprocessing.Rescaling(1./255),
+  tf.keras.layers.Conv2D(32, 3, activation='relu'),
+  tf.keras.layers.MaxPooling2D(),
+  tf.keras.layers.Conv2D(32, 3, activation='relu'),
+  tf.keras.layers.MaxPooling2D(),
+  tf.keras.layers.Conv2D(32, 3, activation='relu'),
+  tf.keras.layers.MaxPooling2D(),
+  tf.keras.layers.Flatten(),
+  tf.keras.layers.Dense(128, activation='relu'),
+  tf.keras.layers.Dense(num_classes)
+])
+
+model.compile(  # 생성된 모델 묶기
   optimizer='adam',
   loss=tf.losses.SparseCategoricalCrossentropy(from_logits=True),
   metrics=['accuracy'])
 
-model.fit(
+model.fit(  #모델 학습
   train_ds,
   # validation_data=val_ds,
-  epochs=5
+  epochs=10
 )
 
-loss, accuracy = model.evaluate(test_ds)
-print("accuracy : ", accuracy, "\n")
+loss, accuracy = model.evaluate(test_ds)  #모델 검증(테스트)
+print("accuracy : ", accuracy)
 print("loss : ", loss)
-# if accuracy >0.9: model.save("./model")
-prediction1 = model.predict(image_array1)
-score1 = tf.nn.softmax(prediction1[0])
-print("prediction1 : ",prediction1)
-print("score1 : ",score1)
-# print(
-#     "This image most likely belongs to {} with a {:.2f} percent confidence."
-#     .format(class_names[np.argmax(score1)], 100 * np.max(score1))
-# )
+if accuracy > 0.9: model.save("./model")  #조건 충족 시 학습된 모델 저장
